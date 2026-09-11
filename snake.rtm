@@ -1,0 +1,181 @@
+
+.section ".text"
+
+// ==========================================================
+// SNAKE ANIMADO PARA RTM32
+//
+// Tablero de 50 caracteres de ancho
+// Serpiente larga de 14 caracteres: ~~~~oooooOOOO@>
+// Movimiento pausado, visible y fluido
+// ==========================================================
+
+start:
+    // Direccion MMIO de la consola UART en RTM32
+    addi $s2, $zero, -0x100
+
+    // Limpiar pantalla al inicio: ESC [ 2 J
+    addi $t0, $zero, 0x1B
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x5B      // [
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x32      // 2
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x4A      // J
+    sb   $t0, 0($s2)
+
+    // Estado de la serpiente
+    // $s0 = posicion horizontal (0 .. 34)
+    // $s1 = direccion (0 = derecha, 1 = izquierda)
+    addi $s0, $zero, 0
+    addi $s1, $zero, 0
+
+frame_loop:
+    // Cursor al inicio: ESC [ H
+    addi $t0, $zero, 0x1B
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x5B      // [
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x48      // H
+    sb   $t0, 0($s2)
+
+    // --- 1. BORDE SUPERIOR (50 caracteres #) ---
+    addi $t1, $zero, 50
+    addi $t0, $zero, 0x23      // #
+top_border:
+    sb   $t0, 0($s2)
+    addi $t1, $t1, -1
+    bne  $t1, $zero, top_border
+
+    // Salto de linea CRLF
+    addi $t0, $zero, 0x0D      // CR
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x0A      // LF
+    sb   $t0, 0($s2)
+
+    // --- 2. FILA DE LA SERPIENTE ---
+    // Pared izquierda
+    addi $t0, $zero, 0x23      // #
+    sb   $t0, 0($s2)
+
+    // Espacios antes de la serpiente ($s0 espacios)
+    addi $t1, $s0, 0
+    beq  $t1, $zero, draw_snake
+    addi $t0, $zero, 0x20      // espacio
+space_before:
+    sb   $t0, 0($s2)
+    addi $t1, $t1, -1
+    bne  $t1, $zero, space_before
+
+draw_snake:
+    // Si va a la derecha ($s1 == 0), dibuja hacia la derecha
+    beq  $s1, $zero, draw_right
+
+    // Mirando a la izquierda: <@OOOOooooo~~~~ (14 caracteres)
+    addi $t0, $zero, 0x3C      // <
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x40      // @
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x4F      // O
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x6F      // o
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x7E      // ~
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    j    after_snake
+
+draw_right:
+    // Mirando a la derecha: ~~~~oooooOOOO@> (14 caracteres)
+    addi $t0, $zero, 0x7E      // ~
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x6F      // o
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x4F      // O
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x40      // @
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x3E      // >
+    sb   $t0, 0($s2)
+
+after_snake:
+    // Espacios despues de la serpiente: (34 - $s0) espacios
+    // Total ancho: 1 + $s0 + 14 + (34 - $s0) + 1 = 50
+    addi $t2, $zero, 34
+    sub  $t1, $t2, $s0
+    beq  $t1, $zero, wall_right
+    addi $t0, $zero, 0x20      // espacio
+space_after:
+    sb   $t0, 0($s2)
+    addi $t1, $t1, -1
+    bne  $t1, $zero, space_after
+
+wall_right:
+    addi $t0, $zero, 0x23      // #
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x0D      // CR
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x0A      // LF
+    sb   $t0, 0($s2)
+
+    // --- 3. BORDE INFERIOR (50 caracteres #) ---
+    addi $t1, $zero, 50
+    addi $t0, $zero, 0x23      // #
+bot_border:
+    sb   $t0, 0($s2)
+    addi $t1, $t1, -1
+    bne  $t1, $zero, bot_border
+
+    addi $t0, $zero, 0x0D      // CR
+    sb   $t0, 0($s2)
+    addi $t0, $zero, 0x0A      // LF
+    sb   $t0, 0($s2)
+
+    // --- 4. RETARDO CALIBRADO (LENTO Y VISIBLE) ---
+    addi $t2, $zero, 35
+delay_out:
+    addi $t1, $zero, 30000
+delay_in:
+    addi $t1, $t1, -1
+    bne  $t1, $zero, delay_in
+    addi $t2, $t2, -1
+    bne  $t2, $zero, delay_out
+
+    // --- 5. ACTUALIZAR POSICION ---
+    beq  $s1, $zero, move_right
+
+    // Mover hacia la izquierda ($s0--)
+    addi $s0, $s0, -1
+    beq  $s0, $zero, hit_left
+    j    frame_loop
+
+hit_left:
+    addi $s1, $zero, 0   // Cambiar a derecha
+    j    frame_loop
+
+move_right:
+    // Mover hacia la derecha ($s0++)
+    addi $s0, $s0, 1
+    addi $t2, $zero, 34
+    beq  $s0, $t2, hit_right
+    j    frame_loop
+
+hit_right:
+    addi $s1, $zero, 1   // Cambiar a izquierda
+    j    frame_loop
