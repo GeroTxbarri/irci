@@ -1,0 +1,14 @@
+.section ".text"
+
+// test.rtm — Programa de prueba simple para RTM32
+// Calcula 3 + 4, guarda el resultado en memoria y hace un bucle infinito.
+
+start:
+    addi $t0, $zero, 3       // $t0 = 3
+    addi $t1, $zero, 4       // $t1 = 4
+    add  $t2, $t0, $t1       // $t2 = 3 + 4 = 7
+    addi $sp, $zero, 0xFFC   // inicializar stack pointer
+    sw   $t2, 0($sp)         // guardar resultado en memoria
+
+loop:
+    j loop                   // bucle infinito (halt)
